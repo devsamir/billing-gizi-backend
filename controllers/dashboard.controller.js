@@ -75,10 +75,13 @@ exports.getCountPesanan = catchAsync(async (req, res, next) => {
   if (satuan === "harian") {
     const tanggals = getArrayOfDate(tanggalAwal, tanggalAkhir);
     const reqCount = tanggals.map(async (tanggal) => {
-      const res = await db.query("SELECT count(*) as value FROM master_billing WHERE tanggal like ?", {
-        type: SELECT,
-        replacements: [`${tanggal}%`],
-      });
+      const res = await db.query(
+        "SELECT count(*) as value FROM master_billing WHERE tanggal like ?",
+        {
+          type: SELECT,
+          replacements: [`${tanggal}%`],
+        }
+      );
       return { label: formatUi(tanggal), value: res[0].value };
     });
     const count = await Promise.all(reqCount);
@@ -90,10 +93,17 @@ exports.getCountPesanan = catchAsync(async (req, res, next) => {
         "SELECT count(*) as value FROM master_billing WHERE tanggal like ? and (tanggal >= ? and tanggal <= ?)",
         {
           type: SELECT,
-          replacements: [`${tanggal}%`, `${tanggalAwal} 00:00:01`, `${tanggalAkhir} 23:59:59`],
+          replacements: [
+            `${tanggal}%`,
+            `${tanggalAwal} 00:00:01`,
+            `${tanggalAkhir} 23:59:59`,
+          ],
         }
       );
-      return { label: tanggal.split("-").reverse().join("/"), value: res[0].value };
+      return {
+        label: tanggal.split("-").reverse().join("/"),
+        value: res[0].value,
+      };
     });
     const count = await Promise.all(reqCount);
     res.status(200).json(count);
@@ -104,7 +114,11 @@ exports.getCountPesanan = catchAsync(async (req, res, next) => {
         "SELECT count(*) as value FROM master_billing WHERE tanggal like ? and (tanggal >= ? and tanggal <= ?)",
         {
           type: SELECT,
-          replacements: [`${tanggal}%`, `${tanggalAwal} 00:00:01`, `${tanggalAkhir} 23:59:59`],
+          replacements: [
+            `${tanggal}%`,
+            `${tanggalAwal} 00:00:01`,
+            `${tanggalAkhir} 23:59:59`,
+          ],
         }
       );
       return { label: tanggal, value: res[0].value };
@@ -142,9 +156,12 @@ exports.getCountRuanganTerbanyak = catchAsync(async (req, res, next) => {
   let { tanggalAwal, tanggalAkhir } = req.body;
   tanggalAwal = `${tanggalAwal} 00:00:00`;
   tanggalAkhir = `${tanggalAkhir} 23:59:59`;
-  const kamar = await db.query("select distinct(nm_kamar) as nm_kamar from kamar", {
-    type: SELECT,
-  });
+  const kamar = await db.query(
+    "select distinct(nm_kamar) as nm_kamar from kamar",
+    {
+      type: SELECT,
+    }
+  );
   const resCount = kamar.map(async (item) => {
     const count = await MasterBilling.count({
       where: {
@@ -159,4 +176,16 @@ exports.getCountRuanganTerbanyak = catchAsync(async (req, res, next) => {
   });
   const countAll = await Promise.all(resCount);
   res.status(200).json(countAll);
+});
+exports.getCountBadge = catchAsync(async (req, res, next) => {
+  const pesanan = await MasterBilling.count({
+    where: { status: "belum", active: true },
+  });
+  const billing = await MasterBilling.count({
+    where: { status: "terlayani", active: true },
+  });
+  res.status(200).json({
+    pesanan,
+    billing,
+  });
 });

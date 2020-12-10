@@ -1,9 +1,10 @@
+const { v4 } = require("uuid");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const MasterBilling = require("../models/MasterBilling");
 const DetailBilling = require("../models/DetailBilling");
 const db = require("../config/database");
-const { formatDatabase, formatUi, formatTime, formatTimeUI } = require("../utils/formatDate");
+const { formatTime } = require("../utils/formatDate");
 const {
   Op,
   QueryTypes: { SELECT },
@@ -15,7 +16,9 @@ const {
 exports.getRiwayatBilling = catchAsync(async (req, res, next) => {
   const { page, limit, search, sort } = req.query;
   if ((page && !limit) || (!page && limit))
-    return next(new AppError("Pagination Memperlukan query page dan limit !", 400));
+    return next(
+      new AppError("Pagination Memperlukan query page dan limit !", 400)
+    );
   let query = "where active=true";
   let queryCount = "where active=true";
   if (search) {
@@ -32,8 +35,12 @@ exports.getRiwayatBilling = catchAsync(async (req, res, next) => {
       // "tanggalTerlayani",
       // "tanggalBayar",
     ];
-    query += ` and (${searchFields.map((item) => `${item} like '%${search}%'`).join(" or ")})`;
-    queryCount += ` and (${searchFields.map((item) => `${item} like '%${search}%'`).join(" or ")})`;
+    query += ` and (${searchFields
+      .map((item) => `${item} like '%${search}%'`)
+      .join(" or ")})`;
+    queryCount += ` and (${searchFields
+      .map((item) => `${item} like '%${search}%'`)
+      .join(" or ")})`;
   }
   if (sort) {
     query += ` order by ${Object.keys(sort)[0]} ${sort[Object.keys(sort)[0]]}`;
@@ -45,9 +52,12 @@ exports.getRiwayatBilling = catchAsync(async (req, res, next) => {
   const resBilling = db.query(`select * from master_billing ${query}`, {
     type: SELECT,
   });
-  const resResult = db.query(`select count(*) as count from master_billing ${queryCount}`, {
-    type: SELECT,
-  });
+  const resResult = db.query(
+    `select count(*) as count from master_billing ${queryCount}`,
+    {
+      type: SELECT,
+    }
+  );
   const [billing, result] = await Promise.all([resBilling, resResult]);
   res.status(200).json({
     data: billing,
@@ -62,12 +72,15 @@ exports.getOneRiwayat = catchAsync(async (req, res, next) => {
   const getBilling = MasterBilling.findOne({ where: { id } });
   const getDetail = DetailBilling.findAll({ where: { idBilling: id } });
   const [billing, detail] = await Promise.all([getBilling, getDetail]);
-  if (!billing || !detail) return next(new AppError("Data Tidak Ditemukan !", 400));
+  if (!billing || !detail)
+    return next(new AppError("Data Tidak Ditemukan !", 400));
   billing.dataValues.tanggal = formatTime(billing.dataValues.tanggal);
   billing.dataValues.tanggalTerlayani = billing.dataValues.tanggalTerlayani
     ? formatTime(billing.dataValues.tanggalTerlayani)
     : "";
-  billing.dataValues.tanggalBayar = billing.dataValues.tanggalBayar ? formatTime(billing.dataValues.tanggalBayar) : "";
+  billing.dataValues.tanggalBayar = billing.dataValues.tanggalBayar
+    ? formatTime(billing.dataValues.tanggalBayar)
+    : "";
   billing.dataValues.pesanan = detail;
   res.status(200).json(billing);
 });
@@ -97,15 +110,17 @@ exports.updateRiwayat = catchAsync(async (req, res, next) => {
     !noKamar ||
     !tanggal ||
     !totalTarif ||
-    !status ||
-    !tanggalTerlayani ||
-    !tanggalBayar
+    !status
   )
     return next(new AppError("Data Billing Tidak Lengkap !", 400));
-  if (pesanan && pesanan.length < 1) return next(new AppError("Pesanan Tidak Boleh Kosong !", 400));
+  if (pesanan && pesanan.length < 1)
+    return next(new AppError("Pesanan Tidak Boleh Kosong !", 400));
   const user = req.user.name;
   const master = await MasterBilling.findOne({ where: { id } });
-  if (!master) return next(new AppError("Billing Dengan ID Yang Diberikan Tidak Ada !", 400));
+  if (!master)
+    return next(
+      new AppError("Billing Dengan ID Yang Diberikan Tidak Ada !", 400)
+    );
   master.noRawat = noRawat;
   master.namaPasien = namaPasien;
   master.namaPemesan = namaPemesan;
@@ -120,7 +135,12 @@ exports.updateRiwayat = catchAsync(async (req, res, next) => {
   await master.save();
   await DetailBilling.destroy({ where: { idBilling: id } });
   const reqDetailBill = pesanan.map((item) => {
-    const data = { ...item, id: v4(), idBilling: id, totalHarga: item.qty * item.harga };
+    const data = {
+      ...item,
+      id: v4(),
+      idBilling: id,
+      totalHarga: item.qty * item.harga,
+    };
     DetailBilling.create(data);
   });
   const detailBill = await Promise.all(reqDetailBill);
@@ -132,7 +152,8 @@ exports.updateRiwayat = catchAsync(async (req, res, next) => {
 // @Private To ['admin']
 exports.deleteRiwayat = catchAsync(async (req, res, next) => {
   const { riwayat } = req.body;
-  if (!riwayat || riwayat.length < 1) return next(new AppError("Id Riwayat Tidak Ada !", 400));
+  if (!riwayat || riwayat.length < 1)
+    return next(new AppError("Id Riwayat Tidak Ada !", 400));
   const user = req.user.name;
   const deletedRiwayat = riwayat.map((id) => {
     return MasterBilling.update({ active: false, user }, { where: { id } });
